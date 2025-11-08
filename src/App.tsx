@@ -4,8 +4,11 @@ import MinimalOBD from "./components/MinimalOBD";
 import AutelKeyProgramming from "./components/AutelKeyProgramming";
 import AutelAKLProcedures from "./components/AutelAKLProcedures";
 import RFSecurityResearch from "./components/RFSecurityResearch";
+import LiveOBDMonitor from "./components/LiveOBDMonitor";
+import AutomatedAKLInterface from "./components/AutomatedAKLInterface";
+import CANBusController from "./components/CANBusController";
 
-type View = "diagnostics" | "immo" | "akl" | "rf_security";
+type View = "diagnostics" | "immo" | "akl" | "rf_security" | "live_obd" | "automated_akl" | "can_bus";
 
 function App() {
   const [currentView, setCurrentView] = useState<View>("diagnostics");
@@ -90,6 +93,54 @@ function App() {
           >
             🔐 IMMO Reference
           </button>
+
+          <button
+            onClick={() => setCurrentView("live_obd")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "live_obd" ? '#0f3d1f' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "live_obd" ? '#00ff00' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            📡 Live OBD Monitor
+          </button>
+
+          <button
+            onClick={() => setCurrentView("automated_akl")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "automated_akl" ? '#3d0f3d' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "automated_akl" ? '#ff00ff' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🔑 Automated AKL
+          </button>
+
+          <button
+            onClick={() => setCurrentView("can_bus")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "can_bus" ? '#3d0000' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "can_bus" ? '#ff0000' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🚙 CAN Bus Control
+          </button>
         </div>
 
         {/* Content */}
@@ -97,6 +148,9 @@ function App() {
         {currentView === "akl" && <AutelAKLProcedures />}
         {currentView === "rf_security" && <RFSecurityResearch />}
         {currentView === "immo" && <AutelKeyProgramming />}
+        {currentView === "live_obd" && <LiveOBDMonitor />}
+        {currentView === "automated_akl" && <AutomatedAKLInterface />}
+        {currentView === "can_bus" && <CANBusController />}
       </div>
     </ErrorBoundary>
   );
