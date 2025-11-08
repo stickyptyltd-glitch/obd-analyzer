@@ -7,8 +7,12 @@ import RFSecurityResearch from "./components/RFSecurityResearch";
 import LiveOBDMonitor from "./components/LiveOBDMonitor";
 import AutomatedAKLInterface from "./components/AutomatedAKLInterface";
 import CANBusController from "./components/CANBusController";
+import TransponderCloner from "./components/TransponderCloner";
+import ExploitBrowser from "./components/ExploitBrowser";
+import CryptoAnalyzer from "./components/CryptoAnalyzer";
+import NetworkMapper from "./components/NetworkMapper";
 
-type View = "diagnostics" | "immo" | "akl" | "rf_security" | "live_obd" | "automated_akl" | "can_bus";
+type View = "diagnostics" | "immo" | "akl" | "rf_security" | "live_obd" | "automated_akl" | "can_bus" | "transponder" | "exploits" | "crypto" | "network_map";
 
 function App() {
   const [currentView, setCurrentView] = useState<View>("diagnostics");
@@ -141,6 +145,70 @@ function App() {
           >
             🚙 CAN Bus Control
           </button>
+
+          <button
+            onClick={() => setCurrentView("transponder")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "transponder" ? '#3d1a3d' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "transponder" ? '#aa00aa' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🔑 Transponder Clone
+          </button>
+
+          <button
+            onClick={() => setCurrentView("exploits")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "exploits" ? '#3d3d00' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "exploits" ? '#ffff00' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🔍 Exploit Database
+          </button>
+
+          <button
+            onClick={() => setCurrentView("crypto")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "crypto" ? '#3d003d' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "crypto" ? '#ff00ff' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🔐 Crypto Analyzer
+          </button>
+
+          <button
+            onClick={() => setCurrentView("network_map")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "network_map" ? '#003d3d' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "network_map" ? '#00ffff' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🗺️ Network Mapper
+          </button>
         </div>
 
         {/* Content */}
@@ -151,6 +219,10 @@ function App() {
         {currentView === "live_obd" && <LiveOBDMonitor />}
         {currentView === "automated_akl" && <AutomatedAKLInterface />}
         {currentView === "can_bus" && <CANBusController />}
+        {currentView === "transponder" && <TransponderCloner />}
+        {currentView === "exploits" && <ExploitBrowser />}
+        {currentView === "crypto" && <CryptoAnalyzer />}
+        {currentView === "network_map" && <NetworkMapper />}
       </div>
     </ErrorBoundary>
   );
