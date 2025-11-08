@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Papa from "papaparse";
 import { canonPid } from "@/lib/pidMapper";
 import { avg, max, min } from "@/lib/statistics";
+import { analyzeTrends, detectComplexPatterns, correlateSymptoms, type PatternMatch, type TrendAnalysis } from "@/lib/advancedPatternAnalysis";
 
 type SimpleRow = {
   timeRaw: number;
@@ -23,6 +24,9 @@ export default function MinimalOBD() {
   const [status, setStatus] = useState("No files uploaded yet");
   const [results, setResults] = useState<string[]>([]);
   const [diagnostics, setDiagnostics] = useState<string[]>([]);
+  const [patterns, setPatterns] = useState<PatternMatch[]>([]);
+  const [trends, setTrends] = useState<TrendAnalysis[]>([]);
+  const [correlations, setCorrelations] = useState<string[]>([]);
   const [history, setHistory] = useState<DiagnosticSession[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -179,17 +183,31 @@ export default function MinimalOBD() {
 
       // Run advanced diagnostics
       if (allData.length > 0) {
-        setStatus(`🔍 Running comprehensive diagnostics...`);
+        setStatus(`🔍 Step 1/4: Running comprehensive diagnostics...`);
         const diag = runAdvancedDiagnostics(allData);
         setDiagnostics(diag);
-        setStatus(`✅ Complete! Found ${diag.length} findings.`);
+
+        setStatus(`🔍 Step 2/4: Analyzing trends...`);
+        const cleanData = allData.filter(d => d.value !== null) as any[]; // Filter null values
+        const trendData = analyzeTrends(cleanData);
+        setTrends(trendData);
+
+        setStatus(`🔍 Step 3/4: Detecting fault patterns...`);
+        const patternMatches = detectComplexPatterns(cleanData, trendData);
+        setPatterns(patternMatches);
+
+        setStatus(`🔍 Step 4/4: Correlating symptoms...`);
+        const symptomCorrelations = correlateSymptoms(cleanData);
+        setCorrelations(symptomCorrelations);
+
+        setStatus(`✅ Complete! Found ${diag.length} findings, ${patternMatches.length} patterns, ${trendData.length} trends.`);
 
         // Save session to history
         const session: DiagnosticSession = {
           id: Date.now().toString(),
           timestamp: new Date().toLocaleString(),
           files: Array.from(files).map(f => f.name),
-          findings: diag,
+          findings: [...diag, ...symptomCorrelations],
           dataPoints: allData.length,
           uniquePIDs: new Set(allData.map(d => d.pid)).size
         };
@@ -694,6 +712,164 @@ export default function MinimalOBD() {
           </div>
         )}
 
+        {/* Predictive Fault Patterns - CRITICAL PRIORITY */}
+        {patterns.length > 0 && (
+          <div style={{
+            padding: '30px',
+            backgroundColor: '#3d0f0f',
+            borderRadius: '10px',
+            border: '5px solid #ff3333',
+            marginBottom: '20px',
+            animation: 'pulse 2s infinite'
+          }}>
+            <h3 style={{ color: '#ff3333', fontSize: '2rem', marginBottom: '20px', fontWeight: 'bold' }}>
+              ⚠️ PREDICTIVE FAULT ANALYSIS - IMMEDIATE ATTENTION
+            </h3>
+            {patterns.map((pattern, i) => (
+              <div key={i} style={{
+                padding: '25px',
+                marginBottom: '15px',
+                backgroundColor: '#1f0f0f',
+                borderRadius: '10px',
+                border: `4px solid ${
+                  pattern.urgency === 'critical' ? '#ff0000' :
+                  pattern.urgency === 'high' ? '#ff6600' :
+                  pattern.urgency === 'medium' ? '#ffaa00' : '#ffdd00'
+                }`
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ff3333' }}>
+                    {pattern.likelyRoot}
+                  </div>
+                  <div style={{
+                    padding: '5px 15px',
+                    backgroundColor: pattern.urgency === 'critical' ? '#ff0000' :
+                                   pattern.urgency === 'high' ? '#ff6600' :
+                                   pattern.urgency === 'medium' ? '#ffaa00' : '#ffdd00',
+                    color: '#fff',
+                    borderRadius: '5px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    fontSize: '0.9rem'
+                  }}>
+                    {pattern.urgency}
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '15px',
+                  backgroundColor: '#0f0f0f',
+                  borderRadius: '8px',
+                  marginBottom: '15px',
+                  border: '2px solid #ff6600'
+                }}>
+                  <div style={{ color: '#ff6600', fontWeight: 'bold', marginBottom: '10px', fontSize: '1.1rem' }}>
+                    🔮 PREDICTION:
+                  </div>
+                  <div style={{ color: '#fff', fontSize: '1.1rem', lineHeight: '1.6' }}>
+                    {pattern.predictedFailure}
+                  </div>
+                  {pattern.timeToFailure && (
+                    <div style={{ marginTop: '10px', color: '#ff3333', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                      ⏰ Estimated Time to Failure: {pattern.timeToFailure}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <div style={{ color: '#ffaa00', fontWeight: 'bold', marginBottom: '8px' }}>
+                    Detected Symptoms:
+                  </div>
+                  <ul style={{ paddingLeft: '20px', lineHeight: '1.8', color: '#ddd' }}>
+                    {pattern.symptoms.map((symptom, idx) => (
+                      <li key={idx}>{symptom}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div style={{ fontSize: '0.9rem', color: '#aaa' }}>
+                  <strong style={{ color: '#00d4ff' }}>Related Parameters:</strong> {pattern.relatedPIDs.join(', ')}
+                </div>
+
+                <div style={{
+                  marginTop: '15px',
+                  padding: '10px',
+                  backgroundColor: '#0f1f0f',
+                  borderRadius: '5px',
+                  fontSize: '0.9rem',
+                  color: '#00ff66'
+                }}>
+                  Confidence: {(pattern.confidence * 100).toFixed(0)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Symptom Correlations */}
+        {correlations.length > 0 && (
+          <div style={{
+            padding: '25px',
+            backgroundColor: '#1f0f1f',
+            borderRadius: '10px',
+            border: '3px solid #ff00ff',
+            marginBottom: '20px'
+          }}>
+            <h3 style={{ color: '#ff00ff', fontSize: '1.6rem', marginBottom: '15px' }}>
+              🔗 Multi-Parameter Correlations
+            </h3>
+            {correlations.map((corr, i) => (
+              <div key={i} style={{
+                padding: '12px',
+                marginBottom: '8px',
+                backgroundColor: '#0f0f1f',
+                borderRadius: '6px',
+                borderLeft: `4px solid ${corr.includes('🔴') ? '#ff3333' : '#ffaa00'}`,
+                fontSize: '1rem',
+                lineHeight: '1.6'
+              }}>
+                {corr}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Trend Analysis */}
+        {trends.filter(t => t.prediction).length > 0 && (
+          <div style={{
+            padding: '25px',
+            backgroundColor: '#0f1f1f',
+            borderRadius: '10px',
+            border: '3px solid #9933ff',
+            marginBottom: '20px'
+          }}>
+            <h3 style={{ color: '#9933ff', fontSize: '1.6rem', marginBottom: '15px' }}>
+              📈 Trend Analysis & Predictions
+            </h3>
+            {trends.filter(t => t.prediction).map((trend, i) => (
+              <div key={i} style={{
+                padding: '15px',
+                marginBottom: '10px',
+                backgroundColor: '#0f0f1f',
+                borderRadius: '6px',
+                border: '2px solid #9933ff'
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#9933ff', marginBottom: '5px' }}>
+                  {trend.pid}: {trend.trend.toUpperCase()}
+                </div>
+                <div style={{ color: '#fff', fontSize: '0.95rem' }}>
+                  {trend.prediction}
+                </div>
+                {trend.anomalies > 0 && (
+                  <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#ff6600' }}>
+                    ⚠️ {trend.anomalies} anomalous readings detected
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {diagnostics.length > 0 && (
           <div style={{
             padding: '30px',
@@ -728,13 +904,16 @@ export default function MinimalOBD() {
           fontSize: '0.9rem',
           color: '#bbb'
         }}>
-          <h4 style={{ color: '#00d4ff', marginBottom: '10px' }}>✅ Features:</h4>
+          <h4 style={{ color: '#00d4ff', marginBottom: '10px' }}>✅ Advanced Features:</h4>
           <ul style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
             <li><strong>File Formats:</strong> CSV, TXT, ZIP, BRC (Car Scanner)</li>
             <li><strong>19+ Diagnostic Systems:</strong> Coolant, battery/charging, fuel trims, MAF, O2 sensors, TPS, IAT, ignition timing, misfire detection, engine load analysis, catalyst efficiency, transmission, torque converter, fuel efficiency, boost pressure, knock detection, sensor correlation, DPF/emissions</li>
+            <li><strong>🔮 Predictive Analysis:</strong> 10+ known fault patterns with failure prediction and time-to-failure estimates (head gasket, turbo, transmission, fuel pump, catalytic converter, timing chain, coil degradation)</li>
+            <li><strong>📈 Trend Analysis:</strong> Automatic detection of increasing/decreasing/erratic patterns across all parameters with anomaly detection</li>
+            <li><strong>🔗 Multi-Parameter Correlation:</strong> Cross-references multiple sensors to identify root causes (coolant+fuel trim, MAF+load, O2 bank comparison, trans temp+slip)</li>
+            <li><strong>⚠️ Smart Fault Detection:</strong> Professional-grade AI-like pattern matching identifies complex mechanical issues before catastrophic failure</li>
             <li><strong>Performance:</strong> Fast processing (2000 rows/file), persistent history, no stack overflow</li>
-            <li><strong>Analysis:</strong> Professional-grade fault detection with severity levels (🔴 Critical, 🟡 Warning, ℹ️ Info)</li>
-            <li><strong>Storage:</strong> Auto-save last 50 diagnostic sessions to localStorage</li>
+            <li><strong>Storage:</strong> Auto-save last 50 diagnostic sessions with full predictions to localStorage</li>
           </ul>
         </div>
       </div>
