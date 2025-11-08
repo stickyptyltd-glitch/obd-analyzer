@@ -363,7 +363,160 @@ export default function MinimalOBD() {
       }
     }
 
-    // 10. Data Quality Check
+    // 10. Misfire Detection
+    const misfireData = getValue("Misfire count");
+    const misfireCyl1 = getValue("Cylinder 1 misfire");
+    const misfireCyl2 = getValue("Cylinder 2 misfire");
+    const misfireCyl3 = getValue("Cylinder 3 misfire");
+    const misfireCyl4 = getValue("Cylinder 4 misfire");
+
+    if (misfireData.length > 0) {
+      const totalMisfires = misfireData.reduce((sum, val) => sum + val, 0);
+      if (totalMisfires > 0) {
+        findings.push(`🔴 MISFIRE: Detected ${totalMisfires} total misfires - check spark plugs, coils, injectors`);
+      }
+    }
+
+    [misfireCyl1, misfireCyl2, misfireCyl3, misfireCyl4].forEach((cylMisfires, idx) => {
+      if (cylMisfires.length > 0 && max(cylMisfires)! > 5) {
+        findings.push(`🔴 CYLINDER ${idx + 1}: ${max(cylMisfires)} misfires detected - specific cylinder issue`);
+      }
+    });
+
+    // 11. Engine Load vs Throttle Correlation
+    const engineLoad = getValue("Engine load");
+    if (engineLoad.length > 0 && throttle.length > 0) {
+      const avgLoad = avg(engineLoad);
+      const avgThrottle = avg(throttle);
+
+      if (avgLoad && avgThrottle && avgLoad > 80 && avgThrottle < 50) {
+        findings.push(`🟡 LOAD/THROTTLE: High load (${avgLoad.toFixed(0)}%) at low throttle (${avgThrottle.toFixed(0)}%) - possible restriction or turbo issue`);
+      }
+
+      const maxLoad = max(engineLoad);
+      if (maxLoad && maxLoad > 95) {
+        findings.push(`ℹ️ LOAD: Peak engine load ${maxLoad.toFixed(0)}% - vehicle under heavy load/acceleration`);
+      }
+    }
+
+    // 12. Catalyst Efficiency
+    const o2_upstream = getValue("O2 Bank 1 Sensor 1");
+    const o2_downstream = getValue("O2 Bank 1 Sensor 2");
+
+    if (o2_upstream.length > 0 && o2_downstream.length > 0) {
+      const upstreamRange = (max(o2_upstream) || 0) - (min(o2_upstream) || 0);
+      const downstreamRange = (max(o2_downstream) || 0) - (min(o2_downstream) || 0);
+
+      if (downstreamRange > 0.5) {
+        findings.push(`🟡 CATALYST: Downstream O2 switching excessively (${downstreamRange.toFixed(2)}V range) - catalyst efficiency low`);
+      }
+
+      if (upstreamRange < 0.3) {
+        findings.push(`🟡 O2 SENSOR: Upstream sensor not switching properly - sensor aging or stuck`);
+      }
+    }
+
+    // 13. Transmission Analysis
+    const transmissionTemp = getValue("Transmission fluid temperature");
+    const gearPosition = getValue("Gear position");
+    const torqueConverterSlip = getValue("Torque converter slip");
+
+    if (transmissionTemp.length > 0) {
+      const maxTransTemp = max(transmissionTemp);
+      const avgTransTemp = avg(transmissionTemp);
+
+      if (maxTransTemp && maxTransTemp > 115) {
+        findings.push(`🔴 TRANSMISSION: Fluid temp very high (${maxTransTemp.toFixed(0)}°C) - risk of damage!`);
+      } else if (avgTransTemp && avgTransTemp > 100) {
+        findings.push(`🟡 TRANSMISSION: Elevated fluid temp (${avgTransTemp.toFixed(0)}°C avg) - check cooler, fluid level`);
+      }
+    }
+
+    if (torqueConverterSlip.length > 0) {
+      const avgSlip = avg(torqueConverterSlip);
+      const maxSlip = max(torqueConverterSlip);
+
+      if (maxSlip && maxSlip > 50) {
+        findings.push(`🔴 TORQUE CONVERTER: Excessive slip (${maxSlip.toFixed(0)} RPM) - converter failing or low fluid`);
+      } else if (avgSlip && avgSlip > 20) {
+        findings.push(`🟡 TORQUE CONVERTER: Elevated slip (${avgSlip.toFixed(0)} RPM avg) - monitor for progression`);
+      }
+    }
+
+    // 14. Fuel System Efficiency
+    if (maf.length > 0 && rpm.length > 0 && speed.length > 0) {
+      // Calculate approximate fuel consumption based on MAF and speed
+      const avgMAF = avg(maf);
+      const avgSpeed = avg(speed.filter(s => s > 5)); // Only when moving
+
+      if (avgMAF && avgSpeed && avgSpeed > 0) {
+        const approxFuelRate = avgMAF / avgSpeed; // Rough efficiency metric
+        if (approxFuelRate > 5) {
+          findings.push(`🟡 FUEL EFFICIENCY: High fuel consumption detected - check driving style, tire pressure, air filter`);
+        }
+      }
+    }
+
+    // 15. Boost Pressure (Turbocharged vehicles)
+    const boostPressure = getValue("Boost pressure");
+    const intakeManifoldPressure = getValue("Intake manifold pressure");
+
+    if (boostPressure.length > 0) {
+      const maxBoost = max(boostPressure);
+      const avgBoost = avg(boostPressure);
+
+      if (maxBoost && maxBoost > 25) {
+        findings.push(`🟡 TURBO: High boost pressure (${maxBoost.toFixed(1)} psi) - verify boost control, check for overboost`);
+      }
+      if (avgBoost && avgBoost < -5 && throttle.length > 0 && avg(throttle)! > 20) {
+        findings.push(`🟡 TURBO: Negative boost under throttle - possible boost leak or wastegate stuck open`);
+      }
+    }
+
+    // 16. Knock/Detonation Detection
+    const knockRetard = getValue("Knock retard");
+    const knockSensor = getValue("Knock sensor");
+
+    if (knockRetard.length > 0) {
+      const maxKnockRetard = max(knockRetard);
+      if (maxKnockRetard && Math.abs(maxKnockRetard) > 3) {
+        findings.push(`🔴 KNOCK: Significant timing retard (${maxKnockRetard.toFixed(1)}°) - use higher octane fuel or check for carbon buildup`);
+      }
+    }
+
+    // 17. Sensor Correlation Analysis
+    if (iat.length > 0 && coolant.length > 0) {
+      const avgIAT = avg(iat);
+      const avgCoolant = avg(coolant);
+
+      if (avgIAT && avgCoolant && avgIAT > avgCoolant + 10) {
+        findings.push(`ℹ️ SENSORS: IAT higher than coolant - normal for forced induction or hot ambient conditions`);
+      }
+      if (avgIAT && avgCoolant && avgIAT < avgCoolant - 20) {
+        findings.push(`🟡 IAT SENSOR: IAT much lower than coolant - sensor may be reading incorrectly`);
+      }
+    }
+
+    // 18. DPF/Emissions System (Diesel)
+    const dpfPressure = getValue("DPF pressure");
+    const dpfTemp = getValue("DPF temperature");
+    const sootLoad = getValue("Soot load");
+
+    if (dpfPressure.length > 0) {
+      const avgDPFPressure = avg(dpfPressure);
+      if (avgDPFPressure && avgDPFPressure > 150) {
+        findings.push(`🔴 DPF: High backpressure (${avgDPFPressure.toFixed(0)} kPa) - DPF clogged, regeneration needed`);
+      }
+    }
+
+    if (sootLoad.length > 0) {
+      const currentSoot = sootLoad[sootLoad.length - 1];
+      if (currentSoot > 80) {
+        findings.push(`🟡 DPF: High soot load (${currentSoot.toFixed(0)}%) - schedule regeneration or service`);
+      }
+    }
+
+    // 19. Data Quality Check
     const uniquePIDs = new Set(data.map(d => d.pid)).size;
     findings.push(`ℹ️ DATA: Analyzed ${data.length} data points across ${uniquePIDs} parameters`);
 
@@ -578,9 +731,10 @@ export default function MinimalOBD() {
           <h4 style={{ color: '#00d4ff', marginBottom: '10px' }}>✅ Features:</h4>
           <ul style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
             <li><strong>File Formats:</strong> CSV, TXT, ZIP, BRC (Car Scanner)</li>
-            <li><strong>Diagnostics:</strong> 10+ systems including coolant, battery/charging, fuel trims, MAF, O2 sensors, TPS, IAT, ignition timing</li>
-            <li><strong>Performance:</strong> Fast processing (2000 rows/file), no stack overflow</li>
-            <li><strong>Analysis:</strong> Advanced fault detection with severity levels (🔴 Critical, 🟡 Warning, ℹ️ Info)</li>
+            <li><strong>19+ Diagnostic Systems:</strong> Coolant, battery/charging, fuel trims, MAF, O2 sensors, TPS, IAT, ignition timing, misfire detection, engine load analysis, catalyst efficiency, transmission, torque converter, fuel efficiency, boost pressure, knock detection, sensor correlation, DPF/emissions</li>
+            <li><strong>Performance:</strong> Fast processing (2000 rows/file), persistent history, no stack overflow</li>
+            <li><strong>Analysis:</strong> Professional-grade fault detection with severity levels (🔴 Critical, 🟡 Warning, ℹ️ Info)</li>
+            <li><strong>Storage:</strong> Auto-save last 50 diagnostic sessions to localStorage</li>
           </ul>
         </div>
       </div>

@@ -2,8 +2,10 @@ import { useState } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 import MinimalOBD from "./components/MinimalOBD";
 import AutelKeyProgramming from "./components/AutelKeyProgramming";
+import AutelAKLProcedures from "./components/AutelAKLProcedures";
+import RFSecurityResearch from "./components/RFSecurityResearch";
 
-type View = "diagnostics" | "immo";
+type View = "diagnostics" | "immo" | "akl" | "rf_security";
 
 function App() {
   const [currentView, setCurrentView] = useState<View>("diagnostics");
@@ -21,15 +23,15 @@ function App() {
           backgroundColor: '#0f1419',
           borderBottom: '3px solid #00d4ff',
           display: 'flex',
-          gap: '20px',
+          gap: '15px',
           justifyContent: 'center',
           flexWrap: 'wrap'
         }}>
           <button
             onClick={() => setCurrentView("diagnostics")}
             style={{
-              padding: '15px 30px',
-              fontSize: '1.2rem',
+              padding: '15px 25px',
+              fontSize: '1.1rem',
               fontWeight: 'bold',
               backgroundColor: currentView === "diagnostics" ? '#0f4c75' : '#0f3460',
               color: '#fff',
@@ -42,10 +44,42 @@ function App() {
           </button>
 
           <button
+            onClick={() => setCurrentView("akl")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "akl" ? '#3d0f1f' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "akl" ? '#ff00ff' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            🔑 AKL Procedures
+          </button>
+
+          <button
+            onClick={() => setCurrentView("rf_security")}
+            style={{
+              padding: '15px 25px',
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              backgroundColor: currentView === "rf_security" ? '#1f0f0f' : '#0f3460',
+              color: '#fff',
+              border: `3px solid ${currentView === "rf_security" ? '#ff3333' : '#666'}`,
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            📡 RF Security
+          </button>
+
+          <button
             onClick={() => setCurrentView("immo")}
             style={{
-              padding: '15px 30px',
-              fontSize: '1.2rem',
+              padding: '15px 25px',
+              fontSize: '1.1rem',
               fontWeight: 'bold',
               backgroundColor: currentView === "immo" ? '#3d1f0f' : '#0f3460',
               color: '#fff',
@@ -54,12 +88,14 @@ function App() {
               cursor: 'pointer'
             }}
           >
-            🔐 Autel IMMO Reference
+            🔐 IMMO Reference
           </button>
         </div>
 
         {/* Content */}
         {currentView === "diagnostics" && <MinimalOBD />}
+        {currentView === "akl" && <AutelAKLProcedures />}
+        {currentView === "rf_security" && <RFSecurityResearch />}
         {currentView === "immo" && <AutelKeyProgramming />}
       </div>
     </ErrorBoundary>
