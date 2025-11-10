@@ -12,6 +12,7 @@ import {
 import { runAdvancedDiagnostics } from "./advancedDiagnostics";
 import { runProfessionalDiagnostics } from "./professionalDiagnostics";
 import { runSecurityResearchDiagnostics } from "./securityResearch";
+import { runAdvancedPredictiveDiagnostics } from "./advancedPredictiveDiagnostics";
 
 export type LongRow = {
   timeRaw: number | string | Date;
@@ -926,6 +927,10 @@ export function runComprehensiveDiagnostics(
 
       // console.log("  - Running runSecurityResearchDiagnostics");
       // allFindings.push(...runSecurityResearchDiagnostics(rows, tripId));
+
+      // NEW 2025 Advanced Predictive Diagnostics (ML-based)
+      console.log("  - Running runAdvancedPredictiveDiagnostics (2025 ML algorithms)");
+      allFindings.push(...runAdvancedPredictiveDiagnostics(rows, tripId));
 
     } catch (error) {
       console.error(`Error in diagnostics for trip ${tripId}:`, error);
