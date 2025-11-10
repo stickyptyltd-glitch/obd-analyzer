@@ -101,13 +101,12 @@ export default function CANBusController() {
 
   const handleInjectionAttack = async () => {
     const dataBytes = injData.split(' ').map(b => parseInt(b, 16));
-    const buffer = Buffer.from(dataBytes);
 
     addLog(`💉 Injecting CAN ID 0x${injCanId.toString(16).toUpperCase()}`);
     addLog(`Data: ${injData}`);
     addLog(`Rate: ${injRate} Hz, Duration: ${injDuration}s`);
 
-    await canKit.injectionAttack(injCanId, buffer, injRate, injDuration);
+    await canKit.injectionAttack(injCanId, dataBytes, injRate, injDuration);
     addLog(`✅ Injection complete`);
   };
 

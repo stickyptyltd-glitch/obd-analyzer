@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { RealAPI } from "../lib/api";
 
 /**
  * RF SIGNAL ANALYZER - WORKING IMPLEMENTATION
@@ -54,37 +55,26 @@ export default function RFSignalAnalyzer() {
     setStatus("Scanning for RF devices...");
 
     try {
-      // Execute device detection commands
-      const commands = [
-        { cmd: "hackrf_info", type: "hackrf" as const, name: "HackRF One" },
-        { cmd: "rtl_test -t", type: "rtlsdr" as const, name: "RTL-SDR" },
-        { cmd: "rfcat -r", type: "yardstick" as const, name: "YardStick One" },
-        { cmd: "pm3 --version", type: "proxmark3" as const, name: "Proxmark3" }
-      ];
+      // Call REAL backend API
+      const result = await RealAPI.rfGetDevices();
 
-      const foundDevices: RFDevice[] = [];
+      if (result.success && result.devices) {
+        const foundDevices: RFDevice[] = result.devices.map((dev: any) => ({
+          id: dev.id,
+          name: dev.name,
+          type: dev.type,
+          connected: dev.connected,
+          capabilities: getDeviceCapabilities(dev.type)
+        }));
 
-      for (const { cmd, type, name } of commands) {
-        try {
-          const response = await executeCommand(cmd);
-          if (response.success) {
-            foundDevices.push({
-              id: type,
-              name,
-              type,
-              connected: true,
-              capabilities: getDeviceCapabilities(type)
-            });
-          }
-        } catch (e) {
-          // Device not found
-        }
+        setDevices(foundDevices);
+        setStatus(foundDevices.length > 0
+          ? `Found ${foundDevices.length} device(s)`
+          : "No RF devices detected. Connect HackRF, RTL-SDR, or YardStick One.");
+      } else {
+        setDevices([]);
+        setStatus("No RF devices detected. Connect HackRF, RTL-SDR, or YardStick One.");
       }
-
-      setDevices(foundDevices);
-      setStatus(foundDevices.length > 0
-        ? `Found ${foundDevices.length} device(s)`
-        : "No RF devices detected. Connect HackRF, RTL-SDR, or YardStick One.");
 
     } catch (error) {
       setStatus(`Error scanning devices: ${error}`);
@@ -106,29 +96,6 @@ export default function RFSignalAnalyzer() {
     }
   };
 
-  const executeCommand = async (cmd: string): Promise<{ success: boolean; output: string }> => {
-    // In browser environment, this would call a backend API
-    // In Termux, we can execute directly
-    return new Promise((resolve) => {
-      // Simulated - actual implementation would use electron or backend
-      const isTermux = typeof window !== 'undefined' && 'Android' in window;
-
-      if (isTermux) {
-        // Termux can execute shell commands via backend
-        fetch('/api/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: cmd })
-        })
-        .then(res => res.json())
-        .then(data => resolve(data))
-        .catch(() => resolve({ success: false, output: '' }));
-      } else {
-        // Browser - need backend server
-        resolve({ success: false, output: 'Backend not available' });
-      }
-    });
-  };
 
   const startCapture = async () => {
     if (!selectedDevice) {
@@ -143,21 +110,14 @@ export default function RFSignalAnalyzer() {
     if (!device) return;
 
     try {
-      let captureCmd = "";
-
-      switch (device.type) {
-        case "hackrf":
-          captureCmd = `hackrf_transfer -r /tmp/capture_${Date.now()}.raw -f ${frequency} -s ${sampleRate} -g ${gain} -n ${sampleRate * 5}`;
-          break;
-        case "rtlsdr":
-          captureCmd = `rtl_sdr -f ${frequency} -s ${sampleRate} -g ${gain} -n ${sampleRate * 5} /tmp/capture_${Date.now()}.raw`;
-          break;
-        case "yardstick":
-          captureCmd = `rfcat -f ${frequency} -r /tmp/capture_${Date.now()}.raw`;
-          break;
-      }
-
-      const result = await executeCommand(captureCmd);
+      // Call REAL backend API
+      const result = await RealAPI.rfCapture({
+        device: device.type,
+        frequency,
+        sampleRate,
+        gain,
+        duration: 5
+      });
 
       if (result.success) {
         // Parse captured data
@@ -175,9 +135,9 @@ export default function RFSignalAnalyzer() {
         signal.analysis = await analyzeSignal(signal);
 
         setSignals([signal, ...signals]);
-        setStatus(`Captured signal at ${frequency / 1000000} MHz`);
+        setStatus(`✅ Captured signal at ${frequency / 1000000} MHz`);
       } else {
-        setStatus(`Capture failed: ${result.output}`);
+        setStatus(`❌ Capture failed: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       setStatus(`Error: ${error}`);
@@ -222,23 +182,19 @@ export default function RFSignalAnalyzer() {
     setStatus(`Replaying signal at ${signal.frequency / 1000000} MHz...`);
 
     try {
-      let replayCmd = "";
-
-      switch (device.type) {
-        case "hackrf":
-          replayCmd = `hackrf_transfer -t /tmp/capture_${signal.id}.raw -f ${signal.frequency} -s ${signal.sampleRate} -x ${gain}`;
-          break;
-        case "yardstick":
-          replayCmd = `rfcat -f ${signal.frequency} -t /tmp/capture_${signal.id}.raw`;
-          break;
-      }
-
-      const result = await executeCommand(replayCmd);
+      // Call REAL backend API
+      const result = await RealAPI.rfReplay({
+        device: device.type,
+        filename: `/tmp/capture_${signal.id}.raw`,
+        frequency: signal.frequency,
+        sampleRate: signal.sampleRate,
+        gain
+      });
 
       if (result.success) {
         setStatus(`✅ Signal replayed successfully`);
       } else {
-        setStatus(`❌ Replay failed: ${result.output}`);
+        setStatus(`❌ Replay failed: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       setStatus(`Error: ${error}`);
@@ -262,8 +218,15 @@ export default function RFSignalAnalyzer() {
         : `rfcat -f ${frequency} -j 10`;
 
       setStatus("Jamming active for 10 seconds...");
-      await executeCommand(jamCmd);
-      setStatus("Jamming complete");
+
+      // Call REAL backend API
+      const result = await RealAPI.executeCommand(jamCmd);
+
+      if (result.success) {
+        setStatus("✅ Jamming complete");
+      } else {
+        setStatus(`❌ Jamming failed: ${result.error || 'Unknown error'}`);
+      }
     } catch (error) {
       setStatus(`Error: ${error}`);
     }
